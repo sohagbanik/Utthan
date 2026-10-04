@@ -4,6 +4,7 @@ Phase 3B: Catalog-Aware Adaptive Interview State Machine & NSQF Competency Evide
 """
 
 from datetime import datetime, timezone
+import json
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
@@ -73,6 +74,16 @@ SECTOR_ICONS: Dict[str, str] = {
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def json_safe(data: Any) -> Any:
+    """
+    Recursively converts UUID, datetime, Enum, and other non-standard JSON types
+    into standard JSON primitives so PostgREST/Supabase client never fails json.dumps.
+    """
+    if data is None:
+        return None
+    return json.loads(json.dumps(data, default=str))
 
 
 def _load_interview_row(client: Client, interview_id: UUID, beneficiary_id: UUID) -> Dict[str, Any]:
@@ -229,6 +240,29 @@ def normalize_education(val: Any) -> str:
         "iti_instructor_cits": "iti_instructor_cits",
     }
     return mapping.get(s, s)
+
+
+def map_to_legacy_education_level(edu: Optional[str]) -> Optional[str]:
+    """
+    Maps canonical NSQF education level to legacy Phase 2C database check constraint:
+    ('no_formal', '8th_pass', '10th_pass', '12th_pass', 'iti_vocational', 'graduate')
+    """
+    if not edu:
+        return None
+    edu_lower = str(edu).strip().lower()
+    if edu_lower in ("none", "no_formal", "no_formal_education", "literate_read_write", "5th", "6th", "7th"):
+        return "no_formal"
+    elif edu_lower in ("8th", "8th_pass", "9th", "9th_pass"):
+        return "8th_pass"
+    elif edu_lower in ("10th", "10th_pass", "matric"):
+        return "10th_pass"
+    elif edu_lower in ("11th", "11th_pass", "12th", "12th_pass", "inter"):
+        return "12th_pass"
+    elif edu_lower in ("iti_vocational", "iti_instructor_cits", "1st_year_diploma", "ug_diploma", "diploma", "previous_nsqf"):
+        return "iti_vocational"
+    elif edu_lower in ("ug", "undergraduate", "graduate", "post_graduate", "pg", "phd", "doctorate"):
+        return "graduate"
+    return "no_formal"
 
 
 def normalize_experience_years(val: Any) -> float:
@@ -765,7 +799,7 @@ def submit_answer_to_interview(
         raise ValueError("Cannot submit answers to an already completed interview.")
 
     profile = get_or_initialize_profile(i_row, b_row)
-    extracted = profile.model_dump(exclude_none=True)
+    extracted = profile.model_dump(mode="json", exclude_none=True)
     responses = dict(i_row.get("responses") or {})
 
     # Map question_id to profile attributes
@@ -860,7 +894,7 @@ def submit_answer_to_interview(
             profile.competency_evidence.responsibility_level = "Direct supervision and guided learning"
 
         extracted["tools_familiarity"] = tools_list
-        extracted["competency_evidence"] = profile.competency_evidence.model_dump()
+        extracted["competency_evidence"] = profile.competency_evidence.model_dump(mode="json")
 
     elif q_id == "cap_notional_hours":
         profile.notional_hours_range = normalize_notional_hours(val)
@@ -904,19 +938,19 @@ def submit_answer_to_interview(
 
     # Save to interview_sessions
     new_rev = int(i_row.get("revision") or 1) + 1
-    client.table("interview_sessions").update({
+    client.table("interview_sessions").update(json_safe({
         "responses": responses,
         "extracted_profile": extracted,
         "revision": new_rev,
         "updated_at": _now().isoformat(),
-    }).eq("id", str(interview_id)).execute()
+    })).eq("id", str(interview_id)).execute()
 
     # Sync primary fields to beneficiaries table
     b_updates: Dict[str, Any] = {"updated_at": _now().isoformat()}
     if profile.name:
         b_updates["name"] = profile.name
     if profile.education:
-        b_updates["education_level"] = profile.education
+        b_updates["education_level"] = map_to_legacy_education_level(profile.education)
     if profile.mobility_preference:
         b_updates["mobility_preference"] = profile.mobility_preference
     if profile.primary_goal:
@@ -928,7 +962,7 @@ def submit_answer_to_interview(
     if profile.district_id:
         b_updates["district_id"] = profile.district_id
 
-    client.table("beneficiaries").update(b_updates).eq("id", str(beneficiary_id)).execute()
+    client.table("beneficiaries").update(json_safe(b_updates)).eq("id", str(beneficiary_id)).execute()
 
     return get_adaptive_interview_state(client, interview_id, beneficiary_id)
 
@@ -945,7 +979,7 @@ def update_profile_field(
     b_row = _load_beneficiary_row(client, beneficiary_id)
 
     profile = get_or_initialize_profile(i_row, b_row)
-    extracted = profile.model_dump(exclude_none=True)
+    extracted = profile.model_dump(mode="json", exclude_none=True)
     responses = dict(i_row.get("responses") or {})
 
     if hasattr(profile, field_name):
@@ -961,19 +995,24 @@ def update_profile_field(
         responses["preference"] = str(value)
 
     new_rev = int(i_row.get("revision") or 1) + 1
-    client.table("interview_sessions").update({
+    client.table("interview_sessions").update(json_safe({
         "responses": responses,
         "extracted_profile": extracted,
         "revision": new_rev,
         "updated_at": _now().isoformat(),
-    }).eq("id", str(interview_id)).execute()
+    })).eq("id", str(interview_id)).execute()
 
     # Sync to beneficiaries
-    if field_name in ("name", "education_level", "mobility_preference", "primary_goal", "state_id", "district_id"):
-        client.table("beneficiaries").update({
+    if field_name in ("education", "education_level"):
+        client.table("beneficiaries").update(json_safe({
+            "education_level": map_to_legacy_education_level(value),
+            "updated_at": _now().isoformat(),
+        })).eq("id", str(beneficiary_id)).execute()
+    elif field_name in ("name", "mobility_preference", "primary_goal", "state_id", "district_id"):
+        client.table("beneficiaries").update(json_safe({
             field_name: value,
             "updated_at": _now().isoformat(),
-        }).eq("id", str(beneficiary_id)).execute()
+        })).eq("id", str(beneficiary_id)).execute()
 
     return profile
 
@@ -988,7 +1027,7 @@ def complete_adaptive_session(
     b_row = _load_beneficiary_row(client, beneficiary_id)
 
     profile = get_or_initialize_profile(i_row, b_row)
-    extracted = profile.model_dump(exclude_none=True)
+    extracted = profile.model_dump(mode="json", exclude_none=True)
     responses = dict(i_row.get("responses") or {})
 
     # Ensure all legacy keys exist for 100% backward compatibility
@@ -1004,13 +1043,13 @@ def complete_adaptive_session(
     now_iso = _now().isoformat()
     new_rev = int(i_row.get("revision") or 1) + 1
 
-    client.table("interview_sessions").update({
+    client.table("interview_sessions").update(json_safe({
         "status": "completed",
         "responses": responses,
         "extracted_profile": extracted,
         "completed_at": now_iso,
         "revision": new_rev,
         "updated_at": now_iso,
-    }).eq("id", str(interview_id)).execute()
+    })).eq("id", str(interview_id)).execute()
 
     return get_adaptive_interview_state(client, interview_id, beneficiary_id)

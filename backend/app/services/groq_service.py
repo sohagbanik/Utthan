@@ -48,6 +48,7 @@ from app.services.adaptive_interview_service import (
     generate_adaptive_question,
     get_adaptive_interview_state,
     get_or_initialize_profile,
+    json_safe,
     normalize_education,
     normalize_experience_years,
     normalize_notional_hours,
@@ -658,13 +659,13 @@ async def interpret_and_apply_to_session(
                 profile.vocational_training = fields.vocational_training_type != "none"
 
             # Persist directly
-            ext = profile.model_dump(exclude_none=True)
+            ext = profile.model_dump(mode="json", exclude_none=True)
             profile.completeness_percentage = calculate_completeness(profile)
             ext["completeness_percentage"] = profile.completeness_percentage
-            client.table("interview_sessions").update({
+            client.table("interview_sessions").update(json_safe({
                 "extracted_profile": ext,
                 "updated_at": _now().isoformat(),
-            }).eq("id", str(interview_id)).execute()
+            })).eq("id", str(interview_id)).execute()
             updated_state = get_adaptive_interview_state(client, interview_id, beneficiary_id)
 
     return InterpretTranscriptResponse(

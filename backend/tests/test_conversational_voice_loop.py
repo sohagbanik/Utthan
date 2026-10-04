@@ -176,8 +176,10 @@ def test_voice_synthesize_empty_text_returns_fallback(test_client_fixture):
 # 2. GROQ RECOMMENDATION EXPLANATION TESTS
 # ============================================================================
 
-def test_explain_recommendations_offline_fallback():
+def test_explain_recommendations_offline_fallback(monkeypatch):
     """When Groq is unconfigured or unavailable, offline multilingual template provides clear explanation."""
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "GROQ_API_KEY", "")
     from app.schemas.nsqf_recommendation import NSQFEligibilityEvaluation, NSQFEligibilityStatus
     b_id = uuid4()
     int_id = uuid4()
