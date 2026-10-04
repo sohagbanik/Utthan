@@ -547,48 +547,31 @@ export default function ConversationPage({
   const continueFromLocation = async () => {
     if (!resolvedLocation || isPersisting || isInterviewLoading) return;
 
-    const currentName = nameInput.trim() || userProfile?.fullName?.trim() || answers?.name || 'Beneficiary';
-
     let activeSession = interviewSession;
     if (!beneficiarySession && onEnsureBeneficiary) {
-      try {
-        const session = await onEnsureBeneficiary({
-          name: currentName,
-          languageId: currentLanguage.id,
-          resolvedLocation,
-        });
-        if (session && !session.isLocal) {
-          try {
-            activeSession = await loadOrResumeInterview(session, langCode);
-          } catch (err) {
-            console.warn('Could not initialize remote interview session:', err);
-          }
-        }
-      } catch (err) {
-        console.warn('Could not ensure beneficiary profile, continuing locally:', err);
-      }
-    } else if (!interviewSession && beneficiarySession && !beneficiarySession.isLocal) {
-      try {
-        activeSession = await loadOrResumeInterview(beneficiarySession, langCode);
-      } catch (err) {
-        console.warn('Could not resume remote interview session:', err);
-      }
+      const session = await onEnsureBeneficiary({
+        name: nameInput,
+        languageId: currentLanguage.id,
+        resolvedLocation,
+      });
+      if (!session) return;
+      activeSession = await loadOrResumeInterview(session, langCode);
+      if (!activeSession) return;
+    } else if (!interviewSession) {
+      activeSession = await loadOrResumeInterview(beneficiarySession, langCode);
+      if (!activeSession) return;
     }
 
-    setAnswers(previous => ({
-      ...previous,
-      name: currentName,
-      location: resolvedLocation,
-    }));
+    setAnswers(previous => ({ ...previous, name: nameInput.trim(), location: resolvedLocation }));
     setCurrentStepIndex(3);
 
-    // Initial adaptive interview state load if backend available
-    if (activeSession?.id && beneficiarySession?.sessionToken && !beneficiarySession.isLocal) {
+    // Initial adaptive interview state load
+    if (activeSession && beneficiarySession) {
       try {
         const state = await fetchAdaptiveState(activeSession.id, beneficiarySession.sessionToken);
-        if (state) setAdaptiveState(state);
+        setAdaptiveState(state);
       } catch (err) {
-        console.warn('Could not load adaptive interview state, continuing with built-in interview:', err);
+        console.warn('Could not load adaptive interview state:', err);
       }
     }
   };
@@ -772,6 +755,7 @@ export default function ConversationPage({
 
   // Handle answering interview steps (legacy fallback)
   const handleSelectAnswer = async (selectedText) => {
+
     if (!currentInterviewStep || isInterviewSaving || isInterviewLoading) return;
     stopAIVoice();
     if (activeRecognizer.current) {
@@ -781,30 +765,13 @@ export default function ConversationPage({
     setLiveTranscript('');
 
     const newAnswers = { ...answers, [currentInterviewStep.category]: selectedText };
-    setAnswers(newAnswers);
+    const interviewResponses = toInterviewResponses(newAnswers);
 
-    // If local/client fallback mode, advance smoothly without server blocking
-    if (!interviewSession || !beneficiarySession || beneficiarySession.isLocal) {
-      if (currentStepIndex < INTERVIEW_STEPS.length + 2) {
-        setCurrentStepIndex(prev => prev + 1);
-      } else {
-        setCurrentStepIndex(INTERVIEW_STEPS.length + 3);
-        const completionVoice = langCode === 'bn'
-          ? "অভিনন্দন! আপনার তথ্যের ভিত্তিতে আমরা আপনার জেলার ৫টি সেরা সরকারি সুযোগ খুঁজে পেয়েছি।"
-          : langCode === 'hi'
-            ? "बधाई हो! आपकी जानकारी के आधार पर हमने आपके जिले में सबसे उपयुक्त 5 सरकारी योजनाएं तैयार कर ली हैं।"
-            : "Congratulations! Based on your answers, we have matched 5 certified government schemes in your district.";
-
-        if (soundEnabled) {
-          setIsSpeaking(true);
-          speakWithSarvamAI({ text: completionVoice, languageId: langCode, speaker: 'priya' })
-            .finally(() => setIsSpeaking(false));
-        }
-      }
+    if (!interviewSession || !beneficiarySession) {
+      setInterviewError('Your interview is not ready to save yet. Please try again.');
       return;
     }
 
-    const interviewResponses = toInterviewResponses(newAnswers);
     setIsInterviewSaving(true);
     setInterviewError('');
     try {
@@ -836,11 +803,12 @@ export default function ConversationPage({
         }
       }
     } catch (error) {
-      console.warn('Could not save interview answer to backend, proceeding locally:', error);
-      if (currentStepIndex < INTERVIEW_STEPS.length + 2) {
-        setCurrentStepIndex(prev => prev + 1);
+      if (error?.status === 401 || error?.status === 403) {
+        if (onInvalidSession) onInvalidSession();
+      } else if (error?.status === 409) {
+        setInterviewError('This interview changed in another tab. Please refresh to continue safely.');
       } else {
-        setCurrentStepIndex(INTERVIEW_STEPS.length + 3);
+        setInterviewError('Your answer could not be saved. Please try again.');
       }
     } finally {
       setIsInterviewSaving(false);
@@ -848,17 +816,9 @@ export default function ConversationPage({
   };
 
   const handleCompleteInterview = async () => {
-    if (isInterviewSaving) return;
-    if (!interviewSession || !beneficiarySession || beneficiarySession.isLocal) {
-      if (onCompleteConversation) {
-        onCompleteConversation(answers);
-      }
-      return;
-    }
+    if (!interviewSession || !beneficiarySession || isInterviewSaving) return;
     if (interviewSession.status === 'completed') {
-      if (onCompleteConversation) {
-        onCompleteConversation(answers);
-      }
+      onCompleteConversation(answers);
       return;
     }
 
@@ -872,13 +832,14 @@ export default function ConversationPage({
       );
       setInterviewSession(completed);
       setAnswers(previous => ({ ...previous, ...completed.responses }));
-      if (onCompleteConversation) {
-        onCompleteConversation({ ...answers, ...completed.responses });
-      }
+      onCompleteConversation({ ...answers, ...completed.responses });
     } catch (error) {
-      console.warn('Could not mark interview completed on backend, navigating locally:', error);
-      if (onCompleteConversation) {
-        onCompleteConversation(answers);
+      if (error?.status === 401 || error?.status === 403) {
+        if (onInvalidSession) onInvalidSession();
+      } else if (error?.status === 409) {
+        setInterviewError('This interview changed in another tab. Please refresh to continue safely.');
+      } else {
+        setInterviewError('Your interview could not be completed. Please try again.');
       }
     } finally {
       setIsInterviewSaving(false);
@@ -1541,18 +1502,13 @@ export default function ConversationPage({
             </button>
             <button
               onClick={continueFromLocation}
-              disabled={!resolvedLocation || isPersisting}
+              disabled={!resolvedLocation || isPersisting || isInterviewLoading}
               className="flex items-center gap-1 hover:text-[#134e40] disabled:opacity-40 font-bold"
             >
-              <span>{isPersisting ? getUIText('conversation', 'saving', langCode) : getUIText('conversation', 'continue', langCode)}</span>
+              <span>{isPersisting || isInterviewLoading ? getUIText('conversation', 'saving', langCode) : getUIText('conversation', 'continue', langCode)}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
-          {persistenceError && (
-            <p className="mt-3 text-xs text-[#7a3b0e] bg-amber-50 border border-amber-200 rounded-lg p-2 text-center" role="alert">
-              {persistenceError}
-            </p>
-          )}
         </div>
       )}
 
@@ -1786,7 +1742,7 @@ export default function ConversationPage({
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={handleCompleteInterview}
-              disabled={isPersisting || isInterviewSaving}
+              disabled={isPersisting || isInterviewSaving || !interviewSession}
               className="px-6 py-3.5 rounded-full bg-[#134e40] hover:bg-[#0d3b30] disabled:opacity-60 text-white font-bold text-sm sm:text-base shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
             >
               <span>{isPersisting || isInterviewSaving ? getUIText('conversation', 'savingInterview', langCode) : getUIText('conversation', 'viewMatchedOpps', langCode)}</span>
