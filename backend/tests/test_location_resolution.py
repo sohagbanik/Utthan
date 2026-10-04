@@ -121,3 +121,22 @@ def test_resolve_rejects_coordinates_outside_india(location_client):
     )
 
     assert response.status_code == 422
+
+
+def test_resolve_with_district_suffix_and_state_alias(location_client):
+    use_provider(FakeReverseGeocoder(ReverseGeocodeResult(
+        country_code="in",
+        state_name="State of Uttar Pradesh",
+        district_names=("Varanasi District",),
+    )))
+
+    response = location_client.post(
+        "/api/locations/resolve",
+        json={"latitude": 25.3176, "longitude": 82.9739},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["state"]["id"] == "state-up"
+    assert data["district"]["id"] == "dist-up-varanasi"
+

@@ -78,6 +78,13 @@ class NominatimReverseGeocoder:
             "district",
             "county",
             "city_district",
+            "city",
+            "town",
+            "municipality",
+            "suburb",
+            "borough",
+            "neighbourhood",
+            "village",
         )
         district_names = tuple(
             dict.fromkeys(
@@ -108,11 +115,38 @@ def get_reverse_geocoder() -> ReverseGeocoder:
     )
 
 
+STATE_ALIASES: dict[str, str] = {
+    "nct of delhi": "delhi",
+    "national capital territory of delhi": "delhi",
+    "delhi nct": "delhi",
+    "orissa": "odisha",
+    "pondicherry": "puducherry",
+    "uttaranchal": "uttarakhand",
+    "jammu and kashmir": "jammu and kashmir",
+    "jammu & kashmir": "jammu and kashmir",
+    "andaman and nicobar": "andaman and nicobar islands",
+    "andaman & nicobar": "andaman and nicobar islands",
+    "dadra and nagar haveli": "dadra and nagar haveli and daman and diu",
+    "daman and diu": "dadra and nagar haveli and daman and diu",
+}
+
+
 def _canonical_text(value: Any) -> str:
     normalized = unicodedata.normalize("NFKC", str(value or "")).casefold()
     normalized = normalized.replace("&", " and ")
     normalized = re.sub(r"[^\w\s]", " ", normalized, flags=re.UNICODE)
-    return " ".join(normalized.split())
+    text = " ".join(normalized.split())
+    for prefix in ("state of ", "union territory of ", "ut of "):
+        if text.startswith(prefix):
+            text = text[len(prefix):].strip()
+    return STATE_ALIASES.get(text, text)
+
+
+def _clean_district_text(text: str) -> str:
+    c = _canonical_text(text)
+    c = re.sub(r"\b(district|dist|division)\b", " ", c)
+    c = c.replace("twenty four", "24")
+    return " ".join(c.split())
 
 
 class LocationResolver:
@@ -145,17 +179,56 @@ class LocationResolver:
             "id, name, code, state_id, lgd_district_code"
         ).eq("state_id", state.id).execute()
         district_rows = district_res.data or []
-        district_matches = [
+
+        # 1. Exact canonical matches
+        exact_matches = [
             row for row in district_rows
             if any(
-                _canonical_text(row.get("name")) == _canonical_text(candidate)
-                for candidate in reverse_result.district_names
+                _canonical_text(row.get("name")) == _canonical_text(cand)
+                for cand in reverse_result.district_names
             )
         ]
-        if len(district_matches) > 1:
+        if len(exact_matches) == 1:
+            district = DistrictResponse(**exact_matches[0])
+            return {"state": state.model_dump(), "district": district.model_dump()}
+        if len(exact_matches) > 1:
             raise AmbiguousLocationError
-        if not district_matches:
-            raise LocationResolutionError
-        district = DistrictResponse(**district_matches[0])
 
-        return {"state": state.model_dump(), "district": district.model_dump()}
+        # 2. Resilient suffix-stripped matches (e.g. "Kolkata District" -> "Kolkata")
+        cleaned_matches = [
+            row for row in district_rows
+            if any(
+                _clean_district_text(row.get("name")) == _clean_district_text(cand)
+                for cand in reverse_result.district_names
+                if _clean_district_text(cand)
+            )
+        ]
+        if len(cleaned_matches) == 1:
+            district = DistrictResponse(**cleaned_matches[0])
+            return {"state": state.model_dump(), "district": district.model_dump()}
+        if len(cleaned_matches) > 1:
+            raise AmbiguousLocationError
+
+        # 3. Whole-word substring matching (e.g. candidate "Kolkata City" contains district "Kolkata")
+        substring_matches = []
+        for row in district_rows:
+            r_name = _clean_district_text(row.get("name"))
+            if not r_name or len(r_name) < 4:
+                continue
+            for cand in reverse_result.district_names:
+                c_name = _clean_district_text(cand)
+                if not c_name or len(c_name) < 4:
+                    continue
+                # check whole word containment
+                if re.search(rf"\b{re.escape(r_name)}\b", c_name) or re.search(rf"\b{re.escape(c_name)}\b", r_name):
+                    if row not in substring_matches:
+                        substring_matches.append(row)
+                    break
+
+        if len(substring_matches) == 1:
+            district = DistrictResponse(**substring_matches[0])
+            return {"state": state.model_dump(), "district": district.model_dump()}
+        if len(substring_matches) > 1:
+            raise AmbiguousLocationError
+
+        raise LocationResolutionError

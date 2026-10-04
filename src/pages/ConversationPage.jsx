@@ -3,7 +3,8 @@ import { Mic, MicOff, Volume2, VolumeX, ArrowRight, ArrowLeft, CheckCircle2, Spa
 import { speakWithSarvamAI, stopAIVoice, createSpeechRecognizer } from '../services/aiService';
 import { isAudioRecordingSupported, AudioRecorder } from '../services/audioRecorder';
 import { LANGUAGES } from '../data/languages';
-import { detectLanguageFromVoice } from '../data/uiTranslations';
+import { getUIText, detectLanguageFromVoice, detectLocationFromVoice } from '../data/uiTranslations';
+import { getStates, getDistrictsByState } from '../data/locations';
 import {
   completeInterview,
   createOrResumeInterview,
@@ -182,6 +183,20 @@ export default function ConversationPage({
   const [resolvedLocation, setResolvedLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState('idle');
   const [locationError, setLocationError] = useState('');
+  const [locationMode, setLocationMode] = useState('auto'); // 'auto' | 'manual'
+  const [manualStateId, setManualStateId] = useState('');
+  const [manualDistrictId, setManualDistrictId] = useState('');
+  const [locationVoiceFeedback, setLocationVoiceFeedback] = useState('');
+
+  const allStates = React.useMemo(() => {
+    return [...getStates()].sort((a, b) => a.name.localeCompare(b.name));
+  }, []);
+
+  const availableDistricts = React.useMemo(() => {
+    if (!manualStateId) return [];
+    return [...getDistrictsByState(manualStateId)].sort((a, b) => a.name.localeCompare(b.name));
+  }, [manualStateId]);
+
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState('');
@@ -300,9 +315,9 @@ export default function ConversationPage({
       textToSpeak = "Welcome to Utthan. Please speak or select your language to begin.";
       speechLang = 'en';
     } else if (isNameStep) {
-      textToSpeak = "Please tell us your name, or type it below.";
+      textToSpeak = getUIText('conversation', 'step1SpeakPrompt', langCode);
     } else if (isLocationStep) {
-      textToSpeak = "We need your location to find opportunities and training available near you. Tap the button when you are ready.";
+      textToSpeak = getUIText('conversation', 'step2SpeakPrompt', langCode);
     } else if (activeAdaptiveQ?.question_text) {
       textToSpeak = activeAdaptiveQ.question_text;
       lastSpokenQuestionIdRef.current = activeAdaptiveQ.question_id;
@@ -345,6 +360,10 @@ export default function ConversationPage({
     setLocationStatus('idle');
     setLocationError('');
     setNameInput('');
+    setManualStateId('');
+    setManualDistrictId('');
+    setLocationVoiceFeedback('');
+    setLocationMode('auto');
     locationAttemptedRef.current = false;
 
     // Confirmation voice in that exact language
@@ -380,10 +399,12 @@ export default function ConversationPage({
     locationAttemptedRef.current = true;
     setLocationStatus('detecting');
     setLocationError('');
+    setLocationVoiceFeedback('');
 
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setLocationStatus('error');
-      setLocationError('This browser does not support automatic location.');
+      setLocationError('This browser does not support automatic location. Please select your State and District manually below.');
+      setLocationMode('manual');
       return;
     }
 
@@ -397,24 +418,130 @@ export default function ConversationPage({
           });
           setResolvedLocation(location);
           setAnswers((previous) => ({ ...previous, location }));
+          if (location?.state?.id) setManualStateId(location.state.id);
+          if (location?.district?.id) setManualDistrictId(location.district.id);
           setLocationStatus('success');
           if (onLocationResolved) onLocationResolved(location);
         } catch {
           setLocationStatus('error');
-          setLocationError('We could not confirm your official State and District. Please try again.');
+          setLocationError(getUIText('conversation', 'locationErrorDefault', langCode));
         }
       },
       (error) => {
         const messages = {
-          1: 'Location permission was not granted. You can try again when ready.',
-          2: 'Your device could not determine a location. Please try again.',
-          3: 'Location detection took too long. Please try again.',
+          1: 'Location permission was not granted. You can select your State and District manually below.',
+          2: 'Your device could not determine a location. You can select your State and District manually below.',
+          3: 'Location detection took too long. You can select your State and District manually below.',
         };
         setLocationStatus('error');
-        setLocationError(messages[error.code] || 'Location is temporarily unavailable. Please try again.');
+        setLocationError(messages[error.code] || 'Location is temporarily unavailable. You can select your State and District manually below.');
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 300000 },
     );
+  };
+
+  const handleSelectManualState = (stateId) => {
+    setManualStateId(stateId);
+    setManualDistrictId('');
+    setLocationVoiceFeedback('');
+    if (resolvedLocation) {
+      setResolvedLocation(null);
+      setAnswers((previous) => ({ ...previous, location: null }));
+    }
+  };
+
+  const handleSelectManualDistrict = (districtId) => {
+    setManualDistrictId(districtId);
+    setLocationVoiceFeedback('');
+    const stateObj = allStates.find((s) => s.id === manualStateId);
+    const distObj = availableDistricts.find((d) => d.id === districtId);
+    if (stateObj && distObj) {
+      const canonicalLoc = {
+        state: {
+          id: stateObj.id,
+          code: stateObj.code,
+          name: stateObj.name,
+          type: stateObj.type,
+          lgd_code: stateObj.lgdCode,
+        },
+        district: {
+          id: distObj.id,
+          code: distObj.code,
+          name: distObj.name,
+          state_id: distObj.stateId,
+          lgd_district_code: distObj.lgdDistrictCode,
+        },
+      };
+      setResolvedLocation(canonicalLoc);
+      setAnswers((previous) => ({ ...previous, location: canonicalLoc }));
+      setLocationStatus('success');
+      if (onLocationResolved) onLocationResolved(canonicalLoc);
+    }
+  };
+
+  const handleLocationVoiceTranscript = (transcript) => {
+    const allDistricts = allStates.flatMap((s) => getDistrictsByState(s.id));
+    const detected = detectLocationFromVoice(transcript, allStates, allDistricts);
+    if (detected?.state && detected?.district) {
+      setManualStateId(detected.state.id);
+      setManualDistrictId(detected.district.id);
+      const canonicalLoc = {
+        state: {
+          id: detected.state.id,
+          code: detected.state.code,
+          name: detected.state.name,
+          type: detected.state.type,
+          lgd_code: detected.state.lgdCode,
+        },
+        district: {
+          id: detected.district.id,
+          code: detected.district.code,
+          name: detected.district.name,
+          state_id: detected.district.stateId,
+          lgd_district_code: detected.district.lgdDistrictCode,
+        },
+      };
+      setResolvedLocation(canonicalLoc);
+      setAnswers((previous) => ({ ...previous, location: canonicalLoc }));
+      setLocationStatus('success');
+      setLocationMode('manual');
+      setLocationVoiceFeedback(`✓ ${detected.district.name}, ${detected.state.name}`);
+      if (onLocationResolved) onLocationResolved(canonicalLoc);
+    } else if (detected?.district) {
+      const stateObj = allStates.find((s) => s.id === detected.district.stateId);
+      if (stateObj) {
+        setManualStateId(stateObj.id);
+        setManualDistrictId(detected.district.id);
+        const canonicalLoc = {
+          state: {
+            id: stateObj.id,
+            code: stateObj.code,
+            name: stateObj.name,
+            type: stateObj.type,
+            lgd_code: stateObj.lgdCode,
+          },
+          district: {
+            id: detected.district.id,
+            code: detected.district.code,
+            name: detected.district.name,
+            state_id: detected.district.stateId,
+            lgd_district_code: detected.district.lgdDistrictCode,
+          },
+        };
+        setResolvedLocation(canonicalLoc);
+        setAnswers((previous) => ({ ...previous, location: canonicalLoc }));
+        setLocationStatus('success');
+        setLocationMode('manual');
+        setLocationVoiceFeedback(`✓ ${detected.district.name}, ${stateObj.name}`);
+        if (onLocationResolved) onLocationResolved(canonicalLoc);
+      }
+    } else if (detected?.state) {
+      setManualStateId(detected.state.id);
+      setLocationMode('manual');
+      setLocationVoiceFeedback(`✓ State: ${detected.state.name}. Please select your district.`);
+    } else {
+      setLocationVoiceFeedback(`Heard: "${transcript}". Please select your State and District below.`);
+    }
   };
 
   const continueFromLocation = async () => {
@@ -802,6 +929,12 @@ export default function ConversationPage({
           if (transcript.trim()) {
             setNameInput(transcript.trim());
           }
+        } else if (isLocationStep) {
+          if (isFinal && transcript.trim()) {
+            setIsListening(false);
+            setVoiceState('idle');
+            handleLocationVoiceTranscript(transcript.trim());
+          }
         } else {
           const currentOptions = currentInterviewStep
             ? (currentInterviewStep.options[langCode] || currentInterviewStep.options.hi || currentInterviewStep.options.en)
@@ -883,6 +1016,8 @@ export default function ConversationPage({
           }
         } else if (isNameStep) {
           setNameInput(transcript);
+        } else if (isLocationStep) {
+          handleLocationVoiceTranscript(transcript);
         } else if (adaptiveState && !isLanguageStep && !isNameStep && !isLocationStep) {
           handleAdaptiveVoiceAnswer(transcript);
         } else if (currentInterviewStep) {
@@ -920,6 +1055,8 @@ export default function ConversationPage({
         }
       } else if (isNameStep) {
         setNameInput(liveTranscript.trim());
+      } else if (isLocationStep) {
+        handleLocationVoiceTranscript(liveTranscript.trim());
       } else if (adaptiveState && !isLanguageStep && !isNameStep && !isLocationStep) {
         handleAdaptiveVoiceAnswer(liveTranscript.trim());
       } else if (currentInterviewStep) {
@@ -994,10 +1131,10 @@ export default function ConversationPage({
           </div>
 
           <h2 className="font-serif-heading text-2xl sm:text-3xl font-bold text-[#134e40] mb-2">
-            Speak or Select Your Language
+            {getUIText('conversation', 'step0Title', langCode)}
           </h2>
           <p className="text-xs sm:text-sm text-[#37474F] mb-6">
-            Say your language aloud (e.g. <span className="font-bold text-[#134e40]">"বাংলা"</span>, <span className="font-bold text-[#134e40]">"हिन्दी"</span>, <span className="font-bold text-[#134e40]">"English"</span>) or tap an option below.
+            {getUIText('conversation', 'step0Subtitle', langCode)}
           </p>
 
           {/* Central Voice Button for Language */}
@@ -1012,7 +1149,7 @@ export default function ConversationPage({
                     ? 'bg-amber-600 text-white animate-pulse ring-4 ring-amber-200'
                     : 'bg-[#134e40] text-white hover:bg-[#0d3b30] hover:scale-105'
               }`}
-              title={isListening ? "Tap to finish & transcribe" : "Tap and say your language"}
+              title={isListening ? "Tap to finish & transcribe" : getUIText('conversation', 'step0SpeakHint', langCode)}
             >
               {isListening && (
                 <>
@@ -1034,7 +1171,7 @@ export default function ConversationPage({
                   ? (liveTranscript ? `Hearing: "${liveTranscript}"...` : "Listening... Tap mic when finished speaking.")
                   : isSpeaking 
                     ? "Speaking greeting aloud (Sarvam AI)..."
-                    : "Tap to Speak your language"}
+                    : getUIText('conversation', 'step0SpeakHint', langCode)}
             </span>
 
             {voiceError && (
@@ -1047,7 +1184,7 @@ export default function ConversationPage({
           {/* 22 Language Cards Grid */}
           <div className="text-left w-full">
             <span className="text-[11px] font-bold text-[#718078] uppercase tracking-wider block mb-2 text-center">
-              Or Tap to Select (22 Indian Languages + English)
+              {getUIText('conversation', 'step0TapSelect', langCode)}
             </span>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto p-1">
@@ -1078,7 +1215,7 @@ export default function ConversationPage({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 text-xs font-bold text-[#134e40] bg-[#FAF7F0] px-3.5 py-1.5 rounded-full border border-[#b8ded6]">
               <UserRound className="w-3.5 h-3.5 text-[#134e40]" />
-              <span>Step 1: Tell Us Your Name</span>
+              <span>{getUIText('conversation', 'step1Badge', langCode)}</span>
             </div>
             <button
               onClick={handleReplayQuestion}
@@ -1092,9 +1229,9 @@ export default function ConversationPage({
           </div>
 
           <h2 className="font-serif-heading text-2xl sm:text-3xl font-bold text-[#134e40] mb-3">
-            What should we call you?
+            {getUIText('conversation', 'step1Title', langCode)}
           </h2>
-          <p className="text-sm text-[#37474F] mb-6">Tell us your name so we can personalize your Utthan journey.</p>
+          <p className="text-sm text-[#37474F] mb-6">{getUIText('conversation', 'step1Subtitle', langCode)}</p>
           <div className="relative mb-5">
             <input
               value={nameInput}
@@ -1102,7 +1239,7 @@ export default function ConversationPage({
               onKeyDown={(event) => {
                 if (event.key === 'Enter') continueFromName();
               }}
-              placeholder="Type or speak your name"
+              placeholder={getUIText('conversation', 'step1Placeholder', langCode)}
               aria-label="Your name"
               className="w-full pl-4 pr-12 py-3.5 rounded-2xl border border-[#b8ded6] bg-white text-[#263238] focus:outline-none focus:ring-2 focus:ring-[#134e40]/30"
             />
@@ -1128,12 +1265,12 @@ export default function ConversationPage({
           </div>
           {isListening && (
             <p className="text-xs text-red-600 font-semibold mb-3 animate-pulse">
-              Listening... Speak your name aloud, then tap mic to stop.
+              {getUIText('conversation', 'step1Listening', langCode)}
             </p>
           )}
           {voiceState === 'transcribing' && (
             <p className="text-xs text-amber-700 font-semibold mb-3 animate-pulse">
-              Transcribing name (Sarvam AI)...
+              {getUIText('conversation', 'step1Transcribing', langCode)}
             </p>
           )}
           {voiceError && (
@@ -1147,14 +1284,14 @@ export default function ConversationPage({
               className="flex items-center gap-1 hover:text-[#134e40] font-medium"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back</span>
+              <span>{getUIText('conversation', 'back', langCode)}</span>
             </button>
             <button
               onClick={continueFromName}
               disabled={!nameInput.trim()}
               className="flex items-center gap-1 hover:text-[#134e40] disabled:opacity-40 font-bold"
             >
-              <span>Continue</span>
+              <span>{getUIText('conversation', 'continue', langCode)}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -1162,14 +1299,14 @@ export default function ConversationPage({
       )}
 
       {/* ============================================================ */}
-      {/* 3. AUTOMATIC LOCATION STEP                                   */}
+      {/* 3. LOCATION STEP: GPS OR MANUAL STATE & DISTRICT SELECTION   */}
       {/* ============================================================ */}
       {isLocationStep && (
         <div className="bg-white/95 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-[#b8ded6] shadow-xl max-w-xl w-full text-center animate-in fade-in duration-300">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 text-xs font-bold text-[#134e40] bg-[#FAF7F0] px-3.5 py-1.5 rounded-full border border-[#b8ded6]">
               <MapPin className="w-3.5 h-3.5 text-[#134e40]" />
-              <span>Step 2: Find Your Location</span>
+              <span>{getUIText('conversation', 'step2Badge', langCode)}</span>
             </div>
             <button
               onClick={handleReplayQuestion}
@@ -1183,43 +1320,172 @@ export default function ConversationPage({
           </div>
 
           <h2 className="font-serif-heading text-2xl sm:text-3xl font-bold text-[#134e40] mb-3">
-            Find opportunities near you
+            {getUIText('conversation', 'step2Title', langCode)}
           </h2>
-          <p className="text-sm text-[#37474F] mb-6">
-            We need your location to find opportunities and training available near you. Your exact coordinates are used only to confirm your official State and District.
+          <p className="text-sm text-[#37474F] mb-5">
+            {getUIText('conversation', 'step2Subtitle', langCode)}
           </p>
 
-          {locationStatus === 'success' && resolvedLocation ? (
-            <div className="p-4 rounded-2xl bg-[#DCECDF]/60 border border-[#b8ded6] text-left mb-5">
-              <div className="flex items-center gap-2 text-emerald-700 font-bold text-sm mb-2">
+          {/* Option Mode Toggle: GPS or Manual */}
+          <div className="flex p-1 bg-[#FAF7F0] rounded-2xl border border-[#b8ded6] mb-5">
+            <button
+              type="button"
+              onClick={() => setLocationMode('auto')}
+              className={`flex-1 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+                locationMode === 'auto'
+                  ? 'bg-[#134e40] text-white shadow-sm'
+                  : 'text-[#134e40] hover:bg-white/80'
+              }`}
+            >
+              <span>{getUIText('conversation', 'autoLocationTab', langCode)}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocationMode('manual')}
+              className={`flex-1 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+                locationMode === 'manual'
+                  ? 'bg-[#134e40] text-white shadow-sm'
+                  : 'text-[#134e40] hover:bg-white/80'
+              }`}
+            >
+              <span>{getUIText('conversation', 'manualLocationTab', langCode)}</span>
+            </button>
+          </div>
+
+          {/* Location Success Banner if resolved */}
+          {resolvedLocation && (
+            <div className="p-4 rounded-2xl bg-[#DCECDF]/60 border border-[#b8ded6] text-left mb-5 animate-in fade-in">
+              <div className="flex items-center gap-2 text-emerald-700 font-bold text-sm mb-1">
                 <CheckCircle2 className="w-5 h-5" />
-                <span>Location detected</span>
+                <span>{getUIText('conversation', 'locationDetected', langCode)}</span>
               </div>
               <p className="text-base font-bold text-[#134e40]">
                 {resolvedLocation.district.name}, {resolvedLocation.state.name}
               </p>
-              <p className="text-xs text-[#718078] mt-1">This official location will be used to find nearby opportunities.</p>
+              <p className="text-xs text-[#718078] mt-1">{getUIText('conversation', 'locationDetectedDesc', langCode)}</p>
             </div>
-          ) : (
-            <button
-              onClick={requestAutomaticLocation}
-              disabled={locationStatus === 'detecting'}
-              className="w-full px-5 py-3.5 rounded-full bg-[#134e40] hover:bg-[#0d3b30] disabled:opacity-60 text-white font-bold text-sm shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
-            >
-              <MapPin className="w-5 h-5" />
-              <span>{locationStatus === 'detecting' ? 'Detecting location...' : 'Allow location access'}</span>
-            </button>
           )}
 
-          {locationStatus === 'error' && (
-            <div className="mt-4 p-3 rounded-xl bg-[#FFF8EE] border border-[#FAD7AB] text-left">
-              <p className="text-xs text-[#7a3b0e] mb-3">{locationError}</p>
+          {/* MODE 1: AUTOMATIC GPS */}
+          {locationMode === 'auto' && !resolvedLocation && (
+            <div className="space-y-4">
               <button
                 onClick={requestAutomaticLocation}
-                className="text-xs font-bold text-[#134e40] hover:underline flex items-center gap-1"
+                disabled={locationStatus === 'detecting'}
+                className="w-full px-5 py-3.5 rounded-full bg-[#134e40] hover:bg-[#0d3b30] disabled:opacity-60 text-white font-bold text-sm shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
               >
-                <RefreshCw className="w-3.5 h-3.5" /> Try again
+                <MapPin className="w-5 h-5" />
+                <span>
+                  {locationStatus === 'detecting'
+                    ? getUIText('conversation', 'detectingLocation', langCode)
+                    : getUIText('conversation', 'allowLocation', langCode)}
+                </span>
               </button>
+
+              {locationStatus === 'error' && (
+                <div className="p-3.5 rounded-xl bg-[#FFF8EE] border border-[#FAD7AB] text-left">
+                  <p className="text-xs text-[#7a3b0e] mb-3">
+                    {locationError || getUIText('conversation', 'locationErrorDefault', langCode)}
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      onClick={requestAutomaticLocation}
+                      className="text-xs font-bold text-[#134e40] hover:underline flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" /> {getUIText('conversation', 'tryAgain', langCode)}
+                    </button>
+                    <button
+                      onClick={() => setLocationMode('manual')}
+                      className="text-xs font-bold text-[#e69943] hover:underline"
+                    >
+                      ✍️ {getUIText('conversation', 'orSelectManually', langCode)} →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MODE 2: MANUAL SELECTION VIA DROPDOWN OR MICROPHONE */}
+          {locationMode === 'manual' && (
+            <div className="space-y-4 text-left">
+              {/* Voice Input for State / District */}
+              <div className="p-3 rounded-2xl bg-[#FAF7F0] border border-[#b8ded6] flex items-center justify-between gap-3">
+                <div className="flex-1">
+                  <span className="text-[11px] font-bold text-[#134e40] block">
+                    🎙️ {getUIText('conversation', 'speakLocationPrompt', langCode)}
+                  </span>
+                  <span className="text-[10px] text-[#718078]">
+                    {isListening
+                      ? getUIText('conversation', 'listeningLocation', langCode)
+                      : voiceState === 'transcribing'
+                        ? getUIText('conversation', 'transcribingLocation', langCode)
+                        : (locationVoiceFeedback || "Tap mic and speak your location")}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={isListening ? stopVoiceInput : startVoiceInput}
+                  disabled={voiceState === 'transcribing'}
+                  className={`p-2.5 rounded-xl transition-all ${
+                    isListening
+                      ? 'bg-red-600 text-white animate-pulse'
+                      : voiceState === 'transcribing'
+                        ? 'bg-amber-600 text-white animate-pulse'
+                        : 'bg-[#134e40] text-white hover:bg-[#0d3b30] shadow'
+                  }`}
+                  title="Speak State or District"
+                >
+                  {voiceState === 'transcribing' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Mic className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+
+              {/* State Dropdown */}
+              <div>
+                <label className="block text-xs font-bold text-[#134e40] mb-1.5">
+                  {getUIText('conversation', 'stateLabel', langCode)}
+                </label>
+                <select
+                  value={manualStateId}
+                  onChange={(e) => handleSelectManualState(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#b8ded6] bg-white text-xs sm:text-sm text-[#263238] focus:outline-none focus:ring-2 focus:ring-[#134e40]/30"
+                >
+                  <option value="">{getUIText('conversation', 'selectState', langCode)}</option>
+                  {allStates.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* District Dropdown */}
+              <div>
+                <label className="block text-xs font-bold text-[#134e40] mb-1.5">
+                  {getUIText('conversation', 'districtLabel', langCode)}
+                </label>
+                <select
+                  value={manualDistrictId}
+                  onChange={(e) => handleSelectManualDistrict(e.target.value)}
+                  disabled={!manualStateId}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#b8ded6] bg-white text-xs sm:text-sm text-[#263238] focus:outline-none focus:ring-2 focus:ring-[#134e40]/30 disabled:opacity-50"
+                >
+                  <option value="">
+                    {manualStateId
+                      ? getUIText('conversation', 'selectDistrict', langCode)
+                      : getUIText('conversation', 'selectStateFirst', langCode)}
+                  </option>
+                  {availableDistricts.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
 
@@ -1232,14 +1498,14 @@ export default function ConversationPage({
               className="flex items-center gap-1 hover:text-[#134e40] font-medium"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back</span>
+              <span>{getUIText('conversation', 'back', langCode)}</span>
             </button>
             <button
               onClick={continueFromLocation}
               disabled={!resolvedLocation || isPersisting || isInterviewLoading}
               className="flex items-center gap-1 hover:text-[#134e40] disabled:opacity-40 font-bold"
             >
-              <span>{isPersisting || isInterviewLoading ? 'Saving...' : 'Continue'}</span>
+              <span>{isPersisting || isInterviewLoading ? getUIText('conversation', 'saving', langCode) : getUIText('conversation', 'continue', langCode)}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -1375,7 +1641,7 @@ export default function ConversationPage({
               <div className="flex items-center justify-center gap-2 mb-3">
                 <span className="h-px bg-gray-200 flex-1" />
                 <span className="text-[11px] font-bold text-[#718078] uppercase tracking-wider">
-                  Or Tap an Option
+                  {getUIText('conversation', 'orTapOption', langCode)}
                 </span>
                 <span className="h-px bg-gray-200 flex-1" />
               </div>
@@ -1405,9 +1671,15 @@ export default function ConversationPage({
                 className="flex items-center gap-1 hover:text-[#134e40] font-medium"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back</span>
+                <span>{getUIText('conversation', 'back', langCode)}</span>
               </button>
-              <span className="font-semibold">Step {currentStepIndex - 1} of {INTERVIEW_STEPS.length + 2}</span>
+              <span className="font-semibold">
+                {langCode === 'bn' 
+                  ? `ধাপ ${currentStepIndex - 1} / ${INTERVIEW_STEPS.length + 2}` 
+                  : langCode === 'hi'
+                    ? `चरण ${currentStepIndex - 1} / ${INTERVIEW_STEPS.length + 2}`
+                    : `Step ${currentStepIndex - 1} of ${INTERVIEW_STEPS.length + 2}`}
+              </span>
             </div>
 
           </div>
@@ -1425,47 +1697,43 @@ export default function ConversationPage({
           </div>
 
           <h2 className="font-serif-heading text-2xl sm:text-3xl font-bold text-[#134e40] mb-2">
-            {langCode === 'bn' ? 'আপনার প্রোফাইল প্রস্তুত হয়েছে!' : langCode === 'hi' ? 'आपकी प्रोफ़ाइल तैयार है!' : 'Your Pathway is Ready!'}
+            {getUIText('conversation', 'summaryTitle', langCode)}
           </h2>
 
           <p className="text-sm sm:text-base text-[#37474F] mb-6">
-            {langCode === 'bn' 
-              ? 'আপনার দেওয়া তথ্যের ভিত্তিতে আমরা আপনার জন্য সরকারি প্রশিক্ষণ ও মাসিক বৃত্তির সুযোগ প্রস্তুত করেছি।' 
-              : langCode === 'hi' 
-                ? 'आपकी जानकारी के आधार पर सरकारी योजनाओं एवं वजीफे वाले काम के अवसर तैयार हैं।'
-                : 'Based on your voice answers, we have matched 5 verified government-certified opportunities for you.'}
+            {getUIText('conversation', 'summarySubtitle', langCode)}
           </p>
 
           {/* User Answers Summary */}
           <div className="bg-[#FAF7F0] rounded-2xl p-4 border border-[#b8ded6] mb-6 text-left space-y-2 text-xs sm:text-sm">
             <div className="flex items-center justify-between">
-              <span className="text-[#718078]">Language:</span>
+              <span className="text-[#718078]">{getUIText('conversation', 'summaryLanguage', langCode)}</span>
               <span className="font-bold text-[#134e40]">{currentLanguage.nativeName} ({currentLanguage.name})</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#718078]">Trade / Interest:</span>
+              <span className="text-[#718078]">{getUIText('conversation', 'summaryTrade', langCode)}</span>
               <span className="font-bold text-[#134e40]">{answers.workInterest || "Selected"}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#718078]">Education:</span>
+              <span className="text-[#718078]">{getUIText('conversation', 'summaryEducation', langCode)}</span>
               <span className="font-bold text-[#134e40]">{answers.education || "Selected"}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#718078]">Name:</span>
+              <span className="text-[#718078]">{getUIText('conversation', 'summaryName', langCode)}</span>
               <span className="font-bold text-[#134e40]">{answers.name || "Not provided"}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#718078]">Location:</span>
+              <span className="text-[#718078]">{getUIText('conversation', 'summaryLocation', langCode)}</span>
               <span className="font-bold text-[#134e40]">
                 {answers.location ? `${answers.location.district.name}, ${answers.location.state.name}` : "Not detected"}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#718078]">Travel:</span>
+              <span className="text-[#718078]">{getUIText('conversation', 'summaryTravel', langCode)}</span>
               <span className="font-bold text-[#134e40]">{answers.mobility || "Selected"}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#718078]">Goal:</span>
+              <span className="text-[#718078]">{getUIText('conversation', 'summaryGoal', langCode)}</span>
               <span className="font-bold text-[#134e40]">{answers.preference || "Selected"}</span>
             </div>
           </div>
@@ -1477,7 +1745,7 @@ export default function ConversationPage({
               disabled={isPersisting || isInterviewSaving || !interviewSession}
               className="px-6 py-3.5 rounded-full bg-[#134e40] hover:bg-[#0d3b30] disabled:opacity-60 text-white font-bold text-sm sm:text-base shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
             >
-              <span>{isPersisting || isInterviewSaving ? 'Saving your interview...' : 'View Matched Opportunities (5)'}</span>
+              <span>{isPersisting || isInterviewSaving ? getUIText('conversation', 'savingInterview', langCode) : getUIText('conversation', 'viewMatchedOpps', langCode)}</span>
               <ArrowRight className="w-5 h-5" />
             </button>
 
@@ -1490,12 +1758,16 @@ export default function ConversationPage({
                 setResolvedLocation(null);
                 setLocationStatus('idle');
                 setLocationError('');
+                setManualStateId('');
+                setManualDistrictId('');
+                setLocationVoiceFeedback('');
+                setLocationMode('auto');
                 locationAttemptedRef.current = false;
               }}
               className="px-5 py-3 rounded-full border border-[#cbd5e1] hover:bg-white text-[#718078] font-medium text-sm transition-colors flex items-center justify-center gap-1.5"
             >
               <RefreshCw className="w-4 h-4" />
-              <span>Start Over</span>
+              <span>{getUIText('conversation', 'startOver', langCode)}</span>
             </button>
           </div>
 

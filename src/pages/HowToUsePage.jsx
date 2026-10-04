@@ -1,63 +1,52 @@
 import React from 'react';
-import { Globe, Mic, BrainCircuit, Compass, CheckCircle2, ArrowRight, Volume2 } from 'lucide-react';
+import { Globe, Mic, BrainCircuit, Compass, CheckCircle2, ArrowRight } from 'lucide-react';
+import { getUIText } from '../data/uiTranslations';
 
 export default function HowToUsePage({ onStartOnboarding, currentLanguage }) {
+  const langId = currentLanguage?.id || 'en';
+
   const steps = [
     {
       num: '1',
       icon: <Globe className="w-8 h-8 text-[#134e40]" />,
-      title: 'Choose your language',
-      titleHi: 'अपनी भाषा चुनें',
-      desc: 'Pick from 22 official Indian languages plus English. You can speak or read in your mother tongue anytime.',
-      descHi: '22 आधिकारिक भारतीय भाषाओं एवं अंग्रेजी में से अपनी भाषा चुनें। आप कभी भी अपनी भाषा बदल सकते हैं।'
+      title: getUIText('howToUse', 'step1Title', langId),
+      desc: getUIText('howToUse', 'step1Desc', langId),
     },
     {
       num: '2',
       icon: <Mic className="w-8 h-8 text-[#134e40]" />,
-      title: 'Tell Utthan about yourself',
-      titleHi: 'बोलकर अपने बारे में बताएं',
-      desc: 'Tap the green microphone and speak naturally about your work, skills, or what you want to learn.',
-      descHi: 'हरे बटन को दबाएं और बिना झिझक अपने काम, हुनर या इच्छा के बारे में बताएं।'
+      title: getUIText('howToUse', 'step2Title', langId),
+      desc: getUIText('howToUse', 'step2Desc', langId),
     },
     {
       num: '3',
       icon: <BrainCircuit className="w-8 h-8 text-[#e69943]" />,
-      title: 'Let AI understand your needs',
-      titleHi: 'एआई आपकी ज़रूरतों को समझेगा',
-      desc: 'Utthan asks 3-4 friendly questions to find government-approved schemes in your district.',
-      descHi: 'उत्थान आपसे 3-4 सरल सवाल पूछेगा और आपके क्षेत्र की योजनाओं से मिलाएगा।'
+      title: getUIText('howToUse', 'step3Title', langId),
+      desc: getUIText('howToUse', 'step3Desc', langId),
     },
     {
       num: '4',
       icon: <Compass className="w-8 h-8 text-[#134e40]" />,
-      title: 'Explore suitable opportunities',
-      titleHi: 'उपयुक्त अवसर और वजीफा देखें',
-      desc: 'See certified training programs with monthly stipends and placement guarantees.',
-      descHi: 'प्रमाणित प्रशिक्षण और मासिक वजीफे वाले काम के अवसर देखें।'
+      title: getUIText('howToUse', 'step4Title', langId),
+      desc: getUIText('howToUse', 'step4Desc', langId),
     },
     {
       num: '5',
       icon: <CheckCircle2 className="w-8 h-8 text-emerald-600" />,
-      title: 'Follow your personal action path',
-      titleHi: 'अपने मार्गदर्शक पथ पर चलें',
-      desc: 'Follow the step-by-step roadmap to become certified, eligible, and self-reliant.',
-      descHi: 'सफलता के सरल चरणों का पालन करें और आत्मनिर्भर बनें।'
+      title: getUIText('howToUse', 'step5Title', langId),
+      desc: getUIText('howToUse', 'step5Desc', langId),
     }
   ];
-
-  const isHindi = currentLanguage.id === 'hi';
 
   return (
     <div className="relative z-20 flex-1 px-4 sm:px-6 lg:px-12 py-8 max-w-4xl mx-auto w-full">
       {/* Header */}
       <div className="text-center mb-10">
         <h1 className="font-serif-heading text-3xl sm:text-4xl lg:text-5xl font-bold text-[#134e40] mb-3">
-          {isHindi ? 'उत्थान का उपयोग कैसे करें?' : 'How to Use Utthan'}
+          {getUIText('howToUse', 'pageTitle', langId)}
         </h1>
         <p className="text-sm sm:text-base text-[#37474F] max-w-xl mx-auto">
-          {isHindi 
-            ? 'केवल 5 सरल चरणों में अपनी आजीविका और कौशल विकास की यात्रा शुरू करें।'
-            : 'Start your livelihood and skill development journey in 5 simple, accessible steps.'}
+          {getUIText('howToUse', 'pageSubtitle', langId)}
         </p>
       </div>
 
@@ -77,11 +66,11 @@ export default function HowToUsePage({ onStartOnboarding, currentLanguage }) {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="text-base sm:text-lg font-bold text-[#134e40]">
-                  {isHindi ? s.titleHi : s.title}
+                  {s.title}
                 </h3>
               </div>
               <p className="text-xs sm:text-sm text-[#37474F] leading-relaxed">
-                {isHindi ? s.descHi : s.desc}
+                {s.desc}
               </p>
             </div>
 
@@ -99,7 +88,7 @@ export default function HowToUsePage({ onStartOnboarding, currentLanguage }) {
           onClick={onStartOnboarding}
           className="px-8 py-3.5 rounded-full bg-[#134e40] hover:bg-[#0d3b30] text-white font-semibold text-base inline-flex items-center gap-2 shadow-lg active:scale-95 transition-all"
         >
-          <span>{isHindi ? 'अभी शुरू करें' : 'Get Started Now'}</span>
+          <span>{getUIText('howToUse', 'getStartedNow', langId)}</span>
           <ArrowRight className="w-5 h-5" />
         </button>
       </div>

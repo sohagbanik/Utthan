@@ -79,7 +79,7 @@ export default function LandingPage({
         className="mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/95 border border-[#b8ded6] hover:border-[#134e40] shadow-sm text-xs sm:text-sm font-semibold text-[#134e40] hover:bg-white transition-all active:scale-95 group"
       >
         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-        <span>🌐 {currentLanguage.name} ({currentLanguage.nativeName}) — Tap to speak or change language</span>
+        <span>🌐 {currentLanguage.name} ({currentLanguage.nativeName}) — {getUIText('landing', 'tapToChangeLang', currentLanguage?.id || 'en')}</span>
       </button>
 
       {/* 3. Primary Microphone Interaction Button */}
@@ -128,7 +128,7 @@ export default function LandingPage({
               className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-[#134e40] border border-[#b8ded6] transition-colors"
               title="Test with sample voice query"
             >
-              🎙️ Quick Voice Demo
+              🎙️ {getUIText('landing', 'quickVoiceDemo', currentLanguage?.id || 'en')}
             </button>
           </div>
         ) : (
@@ -148,7 +148,7 @@ export default function LandingPage({
               type="submit"
               className="px-4 py-2 bg-[#134e40] hover:bg-[#0d3b30] text-white rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm"
             >
-              <span>Ask AI</span>
+              <span>{getUIText('landing', 'askAi', currentLanguage?.id || 'en')}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>

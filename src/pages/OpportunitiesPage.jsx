@@ -222,20 +222,20 @@ export default function OpportunitiesPage({
           <span className="px-3 py-1 rounded-full bg-[#134e40]/10 text-[#134e40] text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-[#e69943]" />
             {nsqfStatus === 'ready' 
-              ? 'NSQF/NQR Authoritative Engine 2.0' 
+              ? getUIText('opportunities', 'nsqfEngine', langId)
               : getUIText('opportunities', 'aiVerified', langId)}
           </span>
           <span className="text-xs text-[#718078]">
-            National Qualification Register (2,810 Courses)
+            {getUIText('opportunities', 'nqrCourses', langId)}
           </span>
         </div>
         <h1 className="font-serif-heading text-3xl sm:text-4xl lg:text-5xl font-bold text-[#134e40] mb-2">
           {nsqfStatus === 'ready' 
-            ? 'Personalized Skilling Pathways'
+            ? getUIText('opportunities', 'nsqfPathways', langId)
             : getUIText('opportunities', 'pageTitle', langId)}
         </h1>
         <p className="text-sm sm:text-base text-[#37474F] max-w-2xl leading-relaxed">
-          Authoritative national qualifications from the live NSQF/NQR catalog matched deterministically to your verified profile, skills, and capacities.
+          {getUIText('opportunities', 'nsqfSubtitle', langId)}
         </p>
       </div>
 
@@ -250,7 +250,7 @@ export default function OpportunitiesPage({
           }`}
         >
           <GraduationCap className="w-5 h-5 text-[#e69943]" />
-          <span>NSQF Recognized Qualifications ({nsqfRecommendations.length})</span>
+          <span>{getUIText('opportunities', 'nsqfTab', langId)} ({nsqfRecommendations.length})</span>
         </button>
         <button
           onClick={() => { setActiveTab('local_batches'); setSelectedCategory('All'); }}
@@ -261,7 +261,7 @@ export default function OpportunitiesPage({
           }`}
         >
           <Building2 className="w-5 h-5 text-[#134e40]" />
-          <span>PM-AJAY Local Batches ({localOpportunities.length})</span>
+          <span>{getUIText('opportunities', 'localBatchesTab', langId)} ({localOpportunities.length})</span>
         </button>
       </div>
 
@@ -272,10 +272,10 @@ export default function OpportunitiesPage({
             <Compass className="w-6 h-6 text-[#e69943] shrink-0 mt-0.5" />
             <div>
               <h2 className="text-base font-bold text-[#9e4c16] mb-1">
-                Profile Information Required for Recommendation
+                {getUIText('opportunities', 'profileReqTitle', langId)}
               </h2>
               <p className="text-xs sm:text-sm text-[#7a3b0e] leading-relaxed max-w-xl">
-                Please complete your conversational interview to provide {missingFields.map(f => f.replace('_', ' ')).join(', ')}. Recommendation Engine 2.0 only recommends official courses with verified citizen data.
+                {getUIText('opportunities', 'profileReqDesc', langId)}
               </p>
             </div>
           </div>
@@ -284,7 +284,7 @@ export default function OpportunitiesPage({
               onClick={onStartInterview}
               className="px-5 py-2.5 rounded-full bg-[#134e40] hover:bg-[#0d3b30] text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
             >
-              <span>Continue Interview</span>
+              <span>{getUIText('opportunities', 'continueInterview', langId)}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           )}
@@ -297,10 +297,10 @@ export default function OpportunitiesPage({
             <AlertCircle className="w-6 h-6 text-[#718078] shrink-0 mt-0.5" />
             <div>
               <h2 className="text-base font-bold text-[#134e40] mb-1">
-                No Direct Catalog Match Found
+                {getUIText('opportunities', 'noMatchTitle', langId)}
               </h2>
               <p className="text-xs sm:text-sm text-[#37474F] leading-relaxed max-w-xl">
-                No authoritative qualifications currently meet all strict criteria for your sector and schedule preference. You can retake the interview to update your choices or explore local training batches.
+                {getUIText('opportunities', 'noMatchDesc', langId)}
               </p>
             </div>
           </div>
@@ -309,7 +309,7 @@ export default function OpportunitiesPage({
               onClick={onStartInterview}
               className="px-5 py-2.5 rounded-full bg-[#134e40] hover:bg-[#0d3b30] text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
             >
-              <span>Update Profile</span>
+              <span>{getUIText('opportunities', 'updateProfile', langId)}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           )}
@@ -320,13 +320,13 @@ export default function OpportunitiesPage({
         <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-white/95 border border-[#b8ded6] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm">
           <div className="flex items-center gap-2.5 text-[#37474F]">
             <Sparkles className="w-4 h-4 text-[#e69943] shrink-0" />
-            <span>Complete your 2-minute voice interview to unlock deterministic NSQF qualification recommendations.</span>
+            <span>{getUIText('opportunities', 'voiceInterviewPrompt', langId)}</span>
           </div>
           <button
             onClick={onStartInterview}
             className="font-bold text-[#134e40] hover:underline flex items-center gap-1 shrink-0"
           >
-            <span>Start Voice Interview</span>
+            <span>{getUIText('opportunities', 'startVoiceInterview', langId)}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -336,7 +336,7 @@ export default function OpportunitiesPage({
       {loading && (
         <div className="bg-white/95 rounded-2xl p-8 border border-[#b8ded6] text-center text-sm text-[#718078] shadow-sm">
           <Sparkles className="w-6 h-6 text-[#134e40] animate-pulse mx-auto mb-2" />
-          Loading authoritative NSQF catalog recommendations...
+          {getUIText('opportunities', 'loadingOpps', langId)}
         </div>
       )}
 
@@ -356,7 +356,7 @@ export default function OpportunitiesPage({
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-[#e69943] shrink-0" />
               <span className="text-xs font-bold text-[#134e40] uppercase tracking-wider">
-                Personalized Recommendation Summary
+                {getUIText('opportunities', 'personalizedSummary', langId)}
               </span>
             </div>
             {recommendationExplanation && (
@@ -367,17 +367,17 @@ export default function OpportunitiesPage({
                     ? 'bg-amber-600 text-white animate-pulse'
                     : 'bg-[#134e40] hover:bg-[#0d3b30] text-white'
                 }`}
-                title={isSpeakingExplanation ? "Stop voice explanation" : "Listen to explanation"}
+                title={isSpeakingExplanation ? getUIText('opportunities', 'stopVoice', langId) : getUIText('opportunities', 'listenExplanation', langId)}
               >
                 {isSpeakingExplanation ? (
                   <>
                     <VolumeX className="w-3.5 h-3.5" />
-                    <span>Stop Voice</span>
+                    <span>{getUIText('opportunities', 'stopVoice', langId)}</span>
                   </>
                 ) : (
                   <>
                     <Volume2 className="w-3.5 h-3.5" />
-                    <span>Listen to Explanation</span>
+                    <span>{getUIText('opportunities', 'listenExplanation', langId)}</span>
                   </>
                 )}
               </button>
@@ -386,7 +386,7 @@ export default function OpportunitiesPage({
           {isExplanationLoading ? (
             <div className="flex items-center gap-2 text-xs text-[#718078] py-2">
               <Loader2 className="w-4 h-4 animate-spin text-[#134e40]" />
-              <span>Generating personalized explanation from qualification match criteria...</span>
+              <span>{getUIText('opportunities', 'generatingExplanation', langId)}</span>
             </div>
           ) : (
             <p className="text-xs sm:text-sm text-[#263238] leading-relaxed">
@@ -400,7 +400,7 @@ export default function OpportunitiesPage({
       {!loading && !error && availableSectors.length > 2 && (
         <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none">
           <span className="text-xs font-semibold text-[#718078] uppercase tracking-wider flex items-center gap-1 mr-1 shrink-0">
-            <Filter className="w-3.5 h-3.5" /> Sector Filter:
+            <Filter className="w-3.5 h-3.5" /> {getUIText('opportunities', 'sectorFilter', langId)}
           </span>
           {availableSectors.map((cat) => (
             <button
@@ -412,7 +412,7 @@ export default function OpportunitiesPage({
                   : 'bg-white/80 hover:bg-white text-[#37474F] border border-[#cbd5e1]'
               }`}
             >
-              {cat}
+              {cat === 'All' ? getUIText('opportunities', 'all', langId) : cat}
             </button>
           ))}
         </div>
@@ -423,7 +423,7 @@ export default function OpportunitiesPage({
         <div className="grid grid-cols-1 gap-5 mb-8">
           {filtered.length === 0 && (
             <div className="bg-white/95 rounded-2xl p-6 border border-[#b8ded6] text-sm text-[#718078]">
-              No courses match the selected filter. Try selecting "All" or updating your interview preferences.
+              {getUIText('opportunities', 'noCoursesFilter', langId)}
             </div>
           )}
           {filtered.map((item) => (
@@ -447,7 +447,9 @@ export default function OpportunitiesPage({
                       ? 'bg-amber-100 text-amber-900 border border-amber-300'
                       : 'bg-blue-100 text-blue-900 border border-blue-300'
                   }`}>
-                    {item.itemType === 'qualification' ? 'Official NSQF Course' : 'Sponsored Batch'}
+                    {item.itemType === 'qualification' 
+                      ? getUIText('opportunities', 'officialNsqfCourse', langId) 
+                      : getUIText('opportunities', 'sponsoredBatch', langId)}
                   </span>
 
                   <span className="text-xs font-medium text-[#718078] bg-[#FAF7F0] px-2.5 py-0.5 rounded-full border border-[#cbd5e1]">
@@ -456,14 +458,14 @@ export default function OpportunitiesPage({
 
                   {item.nsqf_level != null && (
                     <span className="text-xs font-semibold text-[#134e40] bg-[#134e40]/10 px-2 py-0.5 rounded-md">
-                      NSQF Level {item.nsqf_level}
+                      {getUIText('opportunities', 'nsqfLevel', langId)} {item.nsqf_level}
                     </span>
                   )}
 
                   {item.is_pwd && (
                     <span className="text-xs font-semibold text-purple-800 bg-purple-100 border border-purple-300 px-2 py-0.5 rounded-md flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" />
-                      PwD Tailored {item.pwd_categories?.length > 0 ? `(${item.pwd_categories.join(', ')})` : ''}
+                      {getUIText('opportunities', 'pwdTailored', langId)} {item.pwd_categories?.length > 0 ? `(${item.pwd_categories.join(', ')})` : ''}
                     </span>
                   )}
                 </div>
@@ -484,7 +486,7 @@ export default function OpportunitiesPage({
                     <div className="flex items-start gap-2 mb-1.5">
                       <Sparkles className="w-4 h-4 text-[#e69943] shrink-0 mt-0.5" />
                       <span>
-                        <strong className="text-[#134e40]">Why this is recommended:</strong> {item.whyMatches}
+                        <strong className="text-[#134e40]">{getUIText('opportunities', 'whyRecommended', langId)}</strong> {item.whyMatches}
                       </span>
                     </div>
 
@@ -537,12 +539,14 @@ export default function OpportunitiesPage({
                 <div className="text-left md:text-right">
                   {item.rank && (
                     <span className="text-xs font-semibold text-[#718078] block">
-                      Rank #{item.rank}
+                      {getUIText('opportunities', 'rank', langId)} #{item.rank}
                     </span>
                   )}
                   {item.avgEarnings && (
                     <>
-                      <span className="text-[11px] uppercase tracking-wider text-[#718078] block">Est. Earnings</span>
+                      <span className="text-[11px] uppercase tracking-wider text-[#718078] block">
+                        {getUIText('opportunities', 'estEarnings', langId)}
+                      </span>
                       <span className="text-sm sm:text-base font-bold text-[#134e40]">{item.avgEarnings}</span>
                     </>
                   )}
@@ -570,7 +574,7 @@ export default function OpportunitiesPage({
           >
             <span className="flex items-center gap-2">
               <XCircle className="w-4 h-4 text-[#94a3b8]" />
-              View Other Government Schemes Currently Ineligible ({ineligibleOpportunities.length})
+              {getUIText('opportunities', 'ineligibleSectionTitle', langId)} ({ineligibleOpportunities.length})
             </span>
             {showIneligible ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
@@ -585,7 +589,7 @@ export default function OpportunitiesPage({
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-700 border border-gray-300">
-                        Statutory Criteria Unmet
+                        {getUIText('opportunities', 'criteriaUnmet', langId)}
                       </span>
                       <span className="text-xs text-[#718078]">{opp.category}</span>
                     </div>
@@ -610,7 +614,7 @@ export default function OpportunitiesPage({
                     onClick={() => onSelectOpportunity(opp)}
                     className="px-4 py-2 rounded-full border border-[#cbd5e1] hover:border-[#134e40] text-xs font-semibold text-[#134e40] whitespace-nowrap self-start md:self-center"
                   >
-                    View Criteria
+                    {getUIText('opportunities', 'viewCriteria', langId)}
                   </button>
                 </div>
               ))}

@@ -19,6 +19,7 @@ import {
   Loader2,
   ShieldCheck,
 } from 'lucide-react';
+import { getUIText } from '../data/uiTranslations';
 
 export default function AdaptiveInterviewView({
   adaptiveState,
@@ -51,7 +52,9 @@ export default function AdaptiveInterviewView({
     return (
       <div className="bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-[#b8ded6] shadow-xl text-center max-w-xl w-full">
         <Loader2 className="w-8 h-8 text-[#134e40] animate-spin mx-auto mb-3" />
-        <p className="text-sm font-semibold text-[#134e40]">Loading your adaptive interview...</p>
+        <p className="text-sm font-semibold text-[#134e40]">
+          {getUIText('adaptive', 'loadingInterview', langCode)}
+        </p>
       </div>
     );
   }
@@ -111,24 +114,26 @@ export default function AdaptiveInterviewView({
             </div>
             <div>
               <span className="text-[11px] font-bold text-[#e69943] uppercase tracking-wider block">
-                Official Review & Verification
+                {getUIText('adaptive', 'officialReview', langCode)}
               </span>
               <h2 className="font-serif-heading text-xl sm:text-2xl font-bold text-[#134e40]">
-                Structured Beneficiary Profile
+                {getUIText('adaptive', 'structuredProfile', langCode)}
               </h2>
             </div>
           </div>
 
           <div className="text-right">
-            <span className="text-xs font-semibold text-[#718078] block">Completeness</span>
+            <span className="text-xs font-semibold text-[#718078] block">
+              {getUIText('adaptive', 'completeness', langCode)}
+            </span>
             <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-              {completeness_percentage || 100}% Complete
+              {completeness_percentage || 100}% {getUIText('adaptive', 'complete', langCode)}
             </span>
           </div>
         </div>
 
         <p className="text-xs sm:text-sm text-[#37474F] mb-6">
-          Please review your structured profile before course matching. You can verify or edit any field below.
+          {getUIText('adaptive', 'reviewProfileDesc', langCode)}
         </p>
 
         {/* Profile Grid Cards */}
@@ -137,20 +142,20 @@ export default function AdaptiveInterviewView({
           <div className="p-4 rounded-2xl bg-[#FAF7F0] border border-[#b8ded6]">
             <div className="flex items-center justify-between mb-2">
               <span className="font-bold text-[#134e40] flex items-center gap-1.5">
-                <Compass className="w-4 h-4 text-[#e69943]" /> Location & Citizen
+                <Compass className="w-4 h-4 text-[#e69943]" /> {getUIText('adaptive', 'locationAndCitizen', langCode)}
               </span>
             </div>
             <div className="space-y-1.5 text-[#263238]">
               <div>
-                <span className="text-gray-500">Name:</span>{' '}
+                <span className="text-gray-500">{getUIText('adaptive', 'nameLabel', langCode)}</span>{' '}
                 <span className="font-semibold">{prof.name || 'Citizen'}</span>
               </div>
               <div>
-                <span className="text-gray-500">Language:</span>{' '}
+                <span className="text-gray-500">{getUIText('adaptive', 'languageLabel', langCode)}</span>{' '}
                 <span className="font-semibold uppercase">{prof.preferred_language || langCode}</span>
               </div>
               <div>
-                <span className="text-gray-500">District & State:</span>{' '}
+                <span className="text-gray-500">{getUIText('adaptive', 'districtAndStateLabel', langCode)}</span>{' '}
                 <span className="font-semibold">
                   {prof.district_name || prof.district_id || 'Detected District'},{' '}
                   {prof.state_name || prof.state_id || 'State'}
@@ -163,13 +168,13 @@ export default function AdaptiveInterviewView({
           <div className="p-4 rounded-2xl bg-[#FAF7F0] border border-[#b8ded6]">
             <div className="flex items-center justify-between mb-2">
               <span className="font-bold text-[#134e40] flex items-center gap-1.5">
-                <BookOpen className="w-4 h-4 text-[#134e40]" /> Education & Training
+                <BookOpen className="w-4 h-4 text-[#134e40]" /> {getUIText('adaptive', 'educationAndTraining', langCode)}
               </span>
               <button
                 onClick={() => handleStartEdit('education', prof.education)}
                 className="text-[11px] text-[#134e40] hover:underline flex items-center gap-0.5 font-bold"
               >
-                <Edit2 className="w-3 h-3" /> Edit
+                <Edit2 className="w-3 h-3" /> {getUIText('adaptive', 'edit', langCode)}
               </button>
             </div>
             {editingField === 'education' ? (
@@ -183,19 +188,19 @@ export default function AdaptiveInterviewView({
                   onClick={() => handleSaveEdit('education')}
                   className="px-2 py-1 text-xs bg-[#134e40] text-white rounded font-bold"
                 >
-                  Save
+                  {getUIText('adaptive', 'save', langCode)}
                 </button>
               </div>
             ) : (
               <div className="space-y-1.5 text-[#263238]">
                 <div>
-                  <span className="text-gray-500">Education:</span>{' '}
+                  <span className="text-gray-500">{getUIText('adaptive', 'educationLabel', langCode)}</span>{' '}
                   <span className="font-semibold capitalize">
                     {prof.education_label || prof.education?.replace('_', ' ') || 'Not specified'}
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-500">Vocational Training:</span>{' '}
+                  <span className="text-gray-500">{getUIText('adaptive', 'vocationalTrainingLabel', langCode)}</span>{' '}
                   <span className="font-semibold">
                     {prof.vocational_training
                       ? `Yes (${prof.vocational_training_type?.toUpperCase() || 'Vocational'})`
@@ -210,24 +215,24 @@ export default function AdaptiveInterviewView({
           <div className="p-4 rounded-2xl bg-[#FAF7F0] border border-[#b8ded6]">
             <div className="flex items-center justify-between mb-2">
               <span className="font-bold text-[#134e40] flex items-center gap-1.5">
-                <Briefcase className="w-4 h-4 text-[#134e40]" /> Work Experience
+                <Briefcase className="w-4 h-4 text-[#134e40]" /> {getUIText('adaptive', 'workExperience', langCode)}
               </span>
               <button
                 onClick={() => handleStartEdit('work_experience_years', prof.work_experience_years)}
                 className="text-[11px] text-[#134e40] hover:underline flex items-center gap-0.5 font-bold"
               >
-                <Edit2 className="w-3 h-3" /> Edit
+                <Edit2 className="w-3 h-3" /> {getUIText('adaptive', 'edit', langCode)}
               </button>
             </div>
             <div className="space-y-1.5 text-[#263238]">
               <div>
-                <span className="text-gray-500">Duration:</span>{' '}
+                <span className="text-gray-500">{getUIText('adaptive', 'durationLabel', langCode)}</span>{' '}
                 <span className="font-semibold">
-                  {prof.work_experience_years ? `${prof.work_experience_years} Years` : 'Fresher / No Experience'}
+                  {prof.work_experience_years ? `${prof.work_experience_years} ${getUIText('adaptive', 'years', langCode)}` : getUIText('adaptive', 'fresherNoExp', langCode)}
                 </span>
               </div>
               <div>
-                <span className="text-gray-500">Past Occupation:</span>{' '}
+                <span className="text-gray-500">{getUIText('adaptive', 'pastOccupation', langCode)}</span>{' '}
                 <span className="font-semibold">{prof.current_occupation || 'None / Entry-level'}</span>
               </div>
             </div>
@@ -237,18 +242,18 @@ export default function AdaptiveInterviewView({
           <div className="p-4 rounded-2xl bg-[#FAF7F0] border border-[#b8ded6]">
             <div className="flex items-center justify-between mb-2">
               <span className="font-bold text-[#134e40] flex items-center gap-1.5">
-                <Target className="w-4 h-4 text-[#134e40]" /> NSQF Sector & Target
+                <Target className="w-4 h-4 text-[#134e40]" /> {getUIText('adaptive', 'nsqfSectorAndTarget', langCode)}
               </span>
             </div>
             <div className="space-y-1.5 text-[#263238]">
               <div>
-                <span className="text-gray-500">Sector:</span>{' '}
+                <span className="text-gray-500">{getUIText('adaptive', 'sectorLabel', langCode)}</span>{' '}
                 <span className="font-bold text-[#134e40]">
                   {prof.interested_sector_name || prof.interested_sector_id || 'General'}
                 </span>
               </div>
               <div>
-                <span className="text-gray-500">Target Qualifications:</span>{' '}
+                <span className="text-gray-500">{getUIText('adaptive', 'targetQualificationsLabel', langCode)}</span>{' '}
                 <span className="font-semibold text-xs text-gray-700">
                   {prof.target_qualifications?.length > 0
                     ? prof.target_qualifications.join(', ')
@@ -262,12 +267,14 @@ export default function AdaptiveInterviewView({
           <div className="p-4 rounded-2xl bg-[#FAF7F0] border border-[#b8ded6] md:col-span-2">
             <div className="flex items-center justify-between mb-2">
               <span className="font-bold text-[#134e40] flex items-center gap-1.5">
-                <Wrench className="w-4 h-4 text-[#e69943]" /> NSQF Descriptor Evidence (5 Dimensions)
+                <Wrench className="w-4 h-4 text-[#e69943]" /> {getUIText('adaptive', 'nsqfDescriptorEvidence', langCode)}
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#263238]">
               <div className="p-2.5 rounded-xl bg-white border border-gray-200">
-                <span className="font-bold text-gray-700 block mb-0.5">1. Professional Knowledge</span>
+                <span className="font-bold text-gray-700 block mb-0.5">
+                  {getUIText('adaptive', 'profKnowledge', langCode)}
+                </span>
                 <span className="text-gray-600">
                   {comp.professional_knowledge?.length > 0
                     ? comp.professional_knowledge.join(', ')
@@ -275,7 +282,9 @@ export default function AdaptiveInterviewView({
                 </span>
               </div>
               <div className="p-2.5 rounded-xl bg-white border border-gray-200">
-                <span className="font-bold text-gray-700 block mb-0.5">2. Technical Skills & Tools</span>
+                <span className="font-bold text-gray-700 block mb-0.5">
+                  {getUIText('adaptive', 'techSkills', langCode)}
+                </span>
                 <span className="text-gray-600">
                   {prof.tools_familiarity?.length > 0
                     ? prof.tools_familiarity.join(', ')
@@ -283,7 +292,9 @@ export default function AdaptiveInterviewView({
                 </span>
               </div>
               <div className="p-2.5 rounded-xl bg-white border border-gray-200">
-                <span className="font-bold text-gray-700 block mb-0.5">3. Core Skills / Aptitude</span>
+                <span className="font-bold text-gray-700 block mb-0.5">
+                  {getUIText('adaptive', 'coreSkills', langCode)}
+                </span>
                 <span className="text-gray-600">
                   {comp.core_skills?.length > 0
                     ? comp.core_skills.join(', ')
@@ -291,7 +302,9 @@ export default function AdaptiveInterviewView({
                 </span>
               </div>
               <div className="p-2.5 rounded-xl bg-white border border-gray-200">
-                <span className="font-bold text-gray-700 block mb-0.5">4. Process & Responsibility</span>
+                <span className="font-bold text-gray-700 block mb-0.5">
+                  {getUIText('adaptive', 'responsibility', langCode)}
+                </span>
                 <span className="text-gray-600">
                   {comp.responsibility_level || 'Supervised standard routine work with growth potential'}
                 </span>
@@ -303,12 +316,12 @@ export default function AdaptiveInterviewView({
           <div className="p-4 rounded-2xl bg-[#FAF7F0] border border-[#b8ded6] md:col-span-2">
             <div className="flex items-center justify-between mb-2">
               <span className="font-bold text-[#134e40] flex items-center gap-1.5">
-                <Accessibility className="w-4 h-4 text-[#134e40]" /> Inclusion & Work Preferences
+                <Accessibility className="w-4 h-4 text-[#134e40]" /> {getUIText('adaptive', 'inclusionAndPreferences', langCode)}
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-[#263238]">
               <div>
-                <span className="text-gray-500">PwD Status:</span>{' '}
+                <span className="text-gray-500">{getUIText('adaptive', 'pwdStatus', langCode)}</span>{' '}
                 <span className="font-semibold">
                   {prof.pwd_status
                     ? `PwD (${prof.pwd_categories?.join(', ') || 'Identified'})`
@@ -316,11 +329,11 @@ export default function AdaptiveInterviewView({
                 </span>
               </div>
               <div>
-                <span className="text-gray-500">Notional Hours:</span>{' '}
+                <span className="text-gray-500">{getUIText('adaptive', 'notionalHours', langCode)}</span>{' '}
                 <span className="font-semibold">{prof.notional_hours_range || '201–400 Hours'}</span>
               </div>
               <div>
-                <span className="text-gray-500">Mobility:</span>{' '}
+                <span className="text-gray-500">{getUIText('adaptive', 'mobility', langCode)}</span>{' '}
                 <span className="font-semibold capitalize">
                   {prof.mobility_preference?.replace('_', ' ') || 'Within 15 km'}
                 </span>
@@ -339,11 +352,11 @@ export default function AdaptiveInterviewView({
             {isSaving ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Confirming Profile...</span>
+                <span>{getUIText('adaptive', 'confirmingProfile', langCode)}</span>
               </>
             ) : (
               <>
-                <span>Confirm Profile & Match Courses</span>
+                <span>{getUIText('adaptive', 'confirmProfile', langCode)}</span>
                 <ArrowRight className="w-5 h-5" />
               </>
             )}
@@ -366,7 +379,9 @@ export default function AdaptiveInterviewView({
   if (!q) {
     return (
       <div className="bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-[#b8ded6] shadow-xl text-center max-w-xl w-full">
-        <p className="text-sm font-semibold text-[#134e40]">Processing next question...</p>
+        <p className="text-sm font-semibold text-[#134e40]">
+          {getUIText('adaptive', 'processingNext', langCode)}
+        </p>
       </div>
     );
   }
@@ -377,7 +392,7 @@ export default function AdaptiveInterviewView({
       <div className="w-full flex items-center justify-between mb-4">
         <div className="flex items-center gap-2 text-xs font-bold text-[#134e40] bg-[#FAF7F0] px-3.5 py-1.5 rounded-full border border-[#b8ded6]">
           <Sparkles className="w-3.5 h-3.5 text-[#e69943]" />
-          <span>{q.title || `Stage ${stage_index + 1}: Adaptive Assessment`}</span>
+          <span>{q.title || `${getUIText('adaptive', 'stageLabel', langCode)} ${stage_index + 1}`}</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -388,7 +403,7 @@ export default function AdaptiveInterviewView({
                 ? 'bg-[#134e40] text-white border-[#134e40]'
                 : 'bg-white text-[#718078] border-[#cbd5e1]'
             }`}
-            title={soundEnabled ? 'Audio ON' : 'Audio Muted'}
+            title={soundEnabled ? getUIText('conversation', 'audioOn', langCode) : getUIText('conversation', 'audioMuted', langCode)}
           >
             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
           </button>
@@ -398,7 +413,7 @@ export default function AdaptiveInterviewView({
             className={`p-2 rounded-full border border-[#b8ded6] hover:bg-[#FAF7F0] text-[#134e40] transition-colors ${
               isSpeaking ? 'bg-emerald-100 animate-pulse ring-2 ring-emerald-400' : 'bg-white'
             }`}
-            title="Re-listen question"
+            title={getUIText('conversation', 'reListen', langCode)}
           >
             <Volume2 className="w-4 h-4" />
           </button>
@@ -418,7 +433,7 @@ export default function AdaptiveInterviewView({
         <div className="mb-4 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold flex items-center gap-1.5">
           <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
           <span>
-            NSQF Catalog Grounded: {q.catalog_context.sector_name || 'Authoritative NQR Course Qualifications'}
+            {getUIText('adaptive', 'nsqfGrounded', langCode)} {q.catalog_context.sector_name || 'Authoritative NQR Course Qualifications'}
           </span>
         </div>
       )}
@@ -426,7 +441,7 @@ export default function AdaptiveInterviewView({
       {/* Clarification prompt badge */}
       {q.is_clarification && (
         <div className="mb-3 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
-          Clarification needed for precise course eligibility
+          {getUIText('adaptive', 'clarificationNeeded', langCode)}
         </div>
       )}
 
@@ -457,7 +472,7 @@ export default function AdaptiveInterviewView({
                 ? 'bg-amber-600 text-white animate-pulse ring-4 ring-amber-200'
                 : 'bg-[#134e40] text-white hover:bg-[#0d3b30] hover:scale-105'
           }`}
-          title={isListening ? 'Tap to finish & transcribe' : 'Tap to Speak your answer'}
+          title={isListening ? getUIText('conversation', 'listeningIn', langCode) : getUIText('adaptive', 'tapToSpeakNative', langCode)}
         >
           {isListening && (
             <>
@@ -474,14 +489,14 @@ export default function AdaptiveInterviewView({
 
         <span className="mt-3 text-xs sm:text-sm font-semibold text-[#134e40]">
           {voiceState === 'transcribing'
-            ? 'Transcribing your answer (Sarvam AI STT)...'
+            ? getUIText('adaptive', 'transcribingSarvam', langCode)
             : isListening
               ? liveTranscript
                 ? `"${liveTranscript}"`
-                : 'Listening... Speak in your language, tap mic when done.'
+                : getUIText('adaptive', 'listeningNative', langCode)
               : isSpeaking
-                ? 'Speaking question aloud (Sarvam AI)...'
-                : 'Tap to Speak in your native language'}
+                ? getUIText('conversation', 'speakingQuestion', langCode)
+                : getUIText('adaptive', 'tapToSpeakNative', langCode)}
         </span>
 
         {voiceError && (
@@ -497,7 +512,7 @@ export default function AdaptiveInterviewView({
           <div className="flex items-center justify-center gap-2 mb-3">
             <span className="h-px bg-gray-200 flex-1" />
             <span className="text-[11px] font-bold text-[#718078] uppercase tracking-wider">
-              Or Tap an Option
+              {getUIText('adaptive', 'orTapOption', langCode)}
             </span>
             <span className="h-px bg-gray-200 flex-1" />
           </div>
@@ -534,7 +549,7 @@ export default function AdaptiveInterviewView({
           <div className="flex items-center justify-center gap-2 mb-3">
             <span className="h-px bg-gray-200 flex-1" />
             <span className="text-[11px] font-bold text-[#718078] uppercase tracking-wider">
-              Select all that apply
+              {getUIText('adaptive', 'selectAllApply', langCode)}
             </span>
             <span className="h-px bg-gray-200 flex-1" />
           </div>
@@ -568,7 +583,7 @@ export default function AdaptiveInterviewView({
             disabled={selectedMultiOptions.length === 0 || isSaving}
             className="w-full py-3 rounded-full bg-[#134e40] text-white font-bold text-xs sm:text-sm shadow disabled:opacity-40 transition-all hover:bg-[#0d3b30]"
           >
-            Continue with Selected ({selectedMultiOptions.length})
+            {getUIText('adaptive', 'continueSelected', langCode)} ({selectedMultiOptions.length})
           </button>
         </div>
       )}
@@ -587,7 +602,7 @@ export default function AdaptiveInterviewView({
                   setTextInput('');
                 }
               }}
-              placeholder="Type or speak your answer"
+              placeholder={getUIText('adaptive', 'typeOrSpeakAnswer', langCode)}
               className="flex-1 px-4 py-3 rounded-2xl border border-[#b8ded6] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#134e40]/30"
             />
             <button
@@ -600,7 +615,7 @@ export default function AdaptiveInterviewView({
               disabled={!textInput.trim() || isSaving}
               className="px-5 py-3 rounded-2xl bg-[#134e40] text-white font-bold text-sm hover:bg-[#0d3b30] disabled:opacity-40 shadow"
             >
-              Submit
+              {getUIText('adaptive', 'submit', langCode)}
             </button>
           </div>
         </div>
@@ -611,11 +626,11 @@ export default function AdaptiveInterviewView({
         {can_go_back && (
           <button onClick={onBack} className="flex items-center gap-1 hover:text-[#134e40] font-medium">
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back</span>
+            <span>{getUIText('common', 'back', langCode)}</span>
           </button>
         )}
         <span className="font-semibold ml-auto">
-          Stage {stage_index + 1} of {total_stages}
+          {getUIText('adaptive', 'stageLabel', langCode)} {stage_index + 1} {getUIText('adaptive', 'ofLabel', langCode)} {total_stages}
         </span>
       </div>
 

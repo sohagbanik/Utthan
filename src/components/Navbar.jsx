@@ -146,47 +146,47 @@ export default function Navbar({
               onClick={() => handleNavClick('landing')}
               className="text-left py-2.5 px-3 rounded-lg font-medium text-base text-[#134e40] hover:bg-[#dbeef5]"
             >
-              Home
+              {getUIText('nav', 'home', langId)}
             </button>
             <button
               onClick={() => handleNavClick('conversation')}
               className="text-left py-2.5 px-3 rounded-lg font-medium text-base text-[#134e40] hover:bg-[#dbeef5] flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4 text-[#e69943]" />
-              AI Assistant
+              {getUIText('nav', 'aiAssistant', langId)}
             </button>
             <button
               onClick={() => handleNavClick('opportunities')}
               className="text-left py-2.5 px-3 rounded-lg font-medium text-base text-[#134e40] hover:bg-[#dbeef5] flex items-center gap-2"
             >
               <Compass className="w-4 h-4 text-[#134e40]" />
-              Explore Opportunities
+              {getUIText('nav', 'opportunities', langId)}
             </button>
             <button
               onClick={() => handleNavClick('profile')}
               className="text-left py-2.5 px-3 rounded-lg font-medium text-base text-[#134e40] hover:bg-[#dbeef5]"
             >
-              My Profile
+              {getUIText('nav', 'myProfile', langId)}
             </button>
             <button
               onClick={() => handleNavClick('action-path')}
               className="text-left py-2.5 px-3 rounded-lg font-medium text-base text-[#134e40] hover:bg-[#dbeef5]"
             >
-              My Action Path
+              {getUIText('nav', 'myPathway', langId)}
             </button>
             <button
               onClick={() => handleNavClick('how-to-use')}
               className="text-left py-2.5 px-3 rounded-lg font-medium text-base text-[#134e40] hover:bg-[#dbeef5] flex items-center gap-2"
             >
               <BookOpen className="w-4 h-4 text-[#718078]" />
-              How to Use (Help)
+              {getUIText('nav', 'help', langId)}
             </button>
             <button
               onClick={() => handleNavClick('admin')}
               className="text-left py-2.5 px-3 rounded-lg font-medium text-base text-[#134e40] hover:bg-[#dbeef5] flex items-center gap-2"
             >
               <ShieldCheck className="w-4 h-4 text-[#134e40]" />
-              Admin Portal
+              {getUIText('nav', 'adminPortal', langId)}
             </button>
 
             <div className="pt-3 border-t border-[#b8ded6] flex flex-col gap-2">
@@ -198,7 +198,7 @@ export default function Navbar({
                 className="w-full py-2.5 px-4 rounded-full border border-[#134e40] text-[#134e40] font-medium text-sm flex items-center justify-center gap-2"
               >
                 <Globe className="w-4 h-4" />
-                Change Language ({currentLanguage.nativeName})
+                {getUIText('nav', 'changeLanguage', langId)} ({currentLanguage.nativeName})
               </button>
               <button
                 onClick={() => {
@@ -207,7 +207,7 @@ export default function Navbar({
                 }}
                 className="w-full py-3 rounded-full bg-[#134e40] text-[#FAF7F0] font-medium text-sm text-center shadow-md active:scale-95"
               >
-                Get Started
+                {getUIText('nav', 'getStarted', langId)}
               </button>
             </div>
           </div>
